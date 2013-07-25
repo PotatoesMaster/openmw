@@ -5,12 +5,12 @@
 #include <OgreAxisAlignedBox.h>
 
 #include <openengine/ogre/renderer.hpp>
-#include "../mwworld/fallback.hpp"
 
 namespace MWWorld
 {
     class Ptr;
     class CellStore;
+    class Fallback;
 }
 
 namespace MWRender{
@@ -57,21 +57,19 @@ class Objects{
     Ogre::SceneNode* mRootNode;
     bool mIsStatic;
     static int uniqueID;
-    MWWorld::Fallback* mFallback;
-    float lightLinearValue();
-    float lightLinearRadiusMult();
 
-    bool lightQuadratic();
-    float lightQuadraticValue();
-    float lightQuadraticRadiusMult();
-
-    bool lightOutQuadInLin();
+    bool mIsLightQuadratic;
+    bool mIsLightOutQuadInLin;
+    float mLightLinearValue;
+    float mLightLinearRadiusMult;
+    float mLightQuadraticValue;
+    float mLightQuadraticRadiusMult;
 
     void clearSceneNode (Ogre::SceneNode *node);
     ///< Remove all movable objects from \a node.
 
 public:
-    Objects(OEngine::Render::OgreRenderer& renderer, MWWorld::Fallback* fallback): mRenderer (renderer), mIsStatic(false), mFallback(fallback) {}
+    Objects(OEngine::Render::OgreRenderer& renderer, MWWorld::Fallback* fallback);
     ~Objects(){}
     void insertBegin (const MWWorld::Ptr& ptr, bool enabled, bool static_);
     void insertMesh (const MWWorld::Ptr& ptr, const std::string& mesh, bool light=false);

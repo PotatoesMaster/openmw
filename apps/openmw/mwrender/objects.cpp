@@ -16,34 +16,21 @@
 
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/fallback.hpp"
 
 #include "renderconst.hpp"
 
 using namespace MWRender;
-float Objects::lightLinearValue()
-{
-    return mFallback->getFallbackFloat("LightAttenuation_LinearValue");
-}
-float Objects::lightLinearRadiusMult()
-{
-    return mFallback->getFallbackFloat("LightAttenuation_LinearRadiusMult");
-}
-float Objects::lightQuadraticValue()
-{
-    return mFallback->getFallbackFloat("LightAttenuation_QuadraticValue");
-}
-float Objects::lightQuadraticRadiusMult()
-{
-    return mFallback->getFallbackFloat("LightAttenuation_QuadraticRadiusMult");
-}
 
-bool Objects::lightOutQuadInLin()
+Objects::Objects(OEngine::Render::OgreRenderer& renderer, MWWorld::Fallback* fallback):
+    mRenderer (renderer), mIsStatic(false)
 {
-    return mFallback->getFallbackBool("LightAttenuation_OutQuadInLin");
-}
-bool Objects::lightQuadratic()
-{
-    return mFallback->getFallbackBool("LightAttenuation_UseQuadratic");
+    mLightLinearValue = fallback->getFallbackFloat("LightAttenuation_LinearValue", 3.0f);
+    mLightLinearRadiusMult = fallback->getFallbackFloat("LightAttenuation_LinearRadiusMult", 1.0f);
+    mLightQuadraticValue = fallback->getFallbackFloat("LightAttenuation_QuadraticValue");
+    mLightQuadraticRadiusMult = fallback->getFallbackFloat("LightAttenuation_QuadraticRadiusMult");
+    mIsLightOutQuadInLin = fallback->getFallbackBool("LightAttenuation_OutQuadInLin");
+    mIsLightQuadratic = fallback->getFallbackBool("LightAttenuation_UseQuadratic");
 }
 
 int Objects::uniqueID = 0;
@@ -284,7 +271,7 @@ void Objects::insertLight (const MWWorld::Ptr& ptr, Ogre::Entity* skelBase, Ogre
     info.time = Ogre::Math::RangeRandom(-500, +500);
     info.phase = Ogre::Math::RangeRandom(-500, +500);
 
-    bool quadratic = lightOutQuadInLin() ? !info.interior : lightQuadratic();
+    bool quadratic = mIsLightOutQuadInLin ? !info.interior : mIsLightQuadratic;
 
     // with the standard 1 / (c + d*l + d*d*q) equation the attenuation factor never becomes zero,
     // so we ignore lights if their attenuation falls below this factor.
@@ -292,15 +279,15 @@ void Objects::insertLight (const MWWorld::Ptr& ptr, Ogre::Entity* skelBase, Ogre
 
     if (!quadratic)
     {
-        float r = radius * lightLinearRadiusMult();
-        float attenuation = lightLinearValue() / r;
+        float r = radius * mLightLinearRadiusMult;
+        float attenuation = mLightLinearValue / r;
         float activationRange = 1 / (threshold * attenuation);
         light->setAttenuation(activationRange, 0, attenuation, 0);
     }
     else
     {
-        float r = radius * lightQuadraticRadiusMult();
-        float attenuation = lightQuadraticValue() / std::pow(r, 2);
+        float r = radius * mLightQuadraticRadiusMult;
+        float attenuation = mLightQuadraticValue / std::pow(r, 2);
         float activationRange = std::sqrt(1 / (threshold * attenuation));
         light->setAttenuation(activationRange, 0, 0, attenuation);
     }
