@@ -1,40 +1,44 @@
 #include "fallback.hpp"
 #include "boost/lexical_cast.hpp"
+
 namespace MWWorld
 {
     Fallback::Fallback(const std::map<std::string,std::string>& fallback):mFallbackMap(fallback)
     {}
 
-    std::string Fallback::getFallbackString(const std::string& fall) const
+    std::string Fallback::getFallbackString(const std::string& fall, const std::string& defval) const
     {
         std::map<std::string,std::string>::const_iterator it;
         if((it = mFallbackMap.find(fall)) == mFallbackMap.end())
         {
-            return "";
+            return defval;
         }
         return it->second;
     }
-    float Fallback::getFallbackFloat(const std::string& fall) const
+
+    float Fallback::getFallbackFloat(const std::string& fall, float defval) const
     {
         std::string fallback=getFallbackString(fall);
         if(fallback.empty())
-            return 0;
+            return defval;
         else
             return boost::lexical_cast<float>(fallback);
     }
-    bool Fallback::getFallbackBool(const std::string& fall) const
+
+    bool Fallback::getFallbackBool(const std::string& fall, bool defval) const
     {
         std::string fallback=getFallbackString(fall);
         if(fallback.empty())
-            return false;
+            return defval;
         else
             return boost::lexical_cast<bool>(fallback);
     }
-    Ogre::ColourValue Fallback::getFallbackColour(const std::string& fall) const
+
+    Ogre::ColourValue Fallback::getFallbackColour(const std::string& fall, const Ogre::ColourValue& defval) const
     {
         std::string sum=getFallbackString(fall);
         if(sum.empty())
-            return Ogre::ColourValue(0,0,0);
+            return defval;
         else
         {
             std::string ret[3];
