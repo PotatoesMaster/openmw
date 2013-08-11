@@ -9,6 +9,8 @@
 #include "../mwworld/inventorystore.hpp"
 #include "../mwworld/class.hpp"
 
+#include "../mwmechanics/npcstats.hpp"
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
@@ -92,89 +94,85 @@ NpcAnimation::NpcAnimation(const MWWorld::Ptr& ptr, Ogre::SceneNode* node, MWWor
         mPartPriorities[i] = 0;
     }
 
-    const MWWorld::ESMStore &store =
-        MWBase::Environment::get().getWorld()->getStore();
-    const ESM::Race *race = store.get<ESM::Race>().find(mNpc->mRace);
-
-    mHeadModel = "meshes\\" + store.get<ESM::BodyPart>().find(mNpc->mHead)->mModel;
-    mHairModel = "meshes\\" + store.get<ESM::BodyPart>().find(mNpc->mHair)->mModel;
-
-    mBodyPrefix = "b_n_" + mNpc->mRace;
-    Misc::StringUtils::toLower(mBodyPrefix);
-
-    bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
-    std::string smodel = (viewMode != VM_FirstPerson) ?
-                         (!isBeast ? "meshes\\base_anim.nif"     : "meshes\\base_animkna.nif") :
-                         (!isBeast ? "meshes\\base_anim.1st.nif" : "meshes\\base_animkna.1st.nif") ;
-    setObjectRoot(smodel, true);
-
-    if(mViewMode != VM_FirstPerson)
-    {
-        addAnimSource(smodel);
-        if(mBodyPrefix.find("argonian") != std::string::npos)
-            addAnimSource("meshes\\argonian_swimkna.nif");
-        else if(!mNpc->isMale() && !isBeast)
-            addAnimSource("meshes\\base_anim_female.nif");
-        if(mNpc->mModel.length() > 0)
-            addAnimSource("meshes\\"+mNpc->mModel);
-    }
-    else
-    {
-        /* A bit counter-intuitive, but unlike third-person anims, it seems
-         * beast races get both base_anim.1st.nif and base_animkna.1st.nif.
-         */
-        addAnimSource("meshes\\base_anim.1st.nif");
-        if(isBeast)
-            addAnimSource("meshes\\base_animkna.1st.nif");
-        if(!mNpc->isMale() && !isBeast)
-            addAnimSource("meshes\\base_anim_female.1st.nif");
-    }
-
-    forceUpdate();
+    updateNpcBase();
 }
 
 void NpcAnimation::setViewMode(NpcAnimation::ViewMode viewMode)
 {
     assert(viewMode != VM_HeadOnly);
     mViewMode = viewMode;
+    rebuild();
+}
 
+void NpcAnimation::rebuild()
+{
+    updateNpcBase();
+
+    MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
+}
+
+void NpcAnimation::updateNpcBase()
+{
     clearAnimSources();
 
     const MWWorld::ESMStore &store = MWBase::Environment::get().getWorld()->getStore();
     const ESM::Race *race = store.get<ESM::Race>().find(mNpc->mRace);
+    bool isWerewolf = MWWorld::Class::get(mPtr).getNpcStats(mPtr).isWerewolf();
+
+    if(!isWerewolf)
+    {
+        mHeadModel = "meshes\\" + store.get<ESM::BodyPart>().find(mNpc->mHead)->mModel;
+        mHairModel = "meshes\\" + store.get<ESM::BodyPart>().find(mNpc->mHair)->mModel;
+    }
+    else
+    {
+        mHeadModel = "meshes\\" + store.get<ESM::BodyPart>().find("WerewolfHead")->mModel;
+        mHairModel = "meshes\\" + store.get<ESM::BodyPart>().find("WerewolfHair")->mModel;
+    }
 
     bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
-    std::string smodel = (viewMode != VM_FirstPerson) ?
-                         (!isBeast ? "meshes\\base_anim.nif"     : "meshes\\base_animkna.nif") :
-                         (!isBeast ? "meshes\\base_anim.1st.nif" : "meshes\\base_animkna.1st.nif") ;
+    std::string smodel = (mViewMode != VM_FirstPerson) ?
+                         (!isWerewolf ? !isBeast ? "meshes\\base_anim.nif"
+                                                 : "meshes\\base_animkna.nif"
+                                      : "meshes\\wolf\\skin.nif") :
+                         (!isWerewolf ? !isBeast ? "meshes\\base_anim.1st.nif"
+                                                 : "meshes\\base_animkna.1st.nif"
+                                      : "meshes\\wolf\\skin.1st.nif");
     setObjectRoot(smodel, true);
 
     if(mViewMode != VM_FirstPerson)
     {
         addAnimSource(smodel);
-        if(mBodyPrefix.find("argonian") != std::string::npos)
-            addAnimSource("meshes\\argonian_swimkna.nif");
-        else if(!mNpc->isMale() && !isBeast)
-            addAnimSource("meshes\\base_anim_female.nif");
-        if(mNpc->mModel.length() > 0)
-            addAnimSource("meshes\\"+mNpc->mModel);
+        if(!isWerewolf)
+        {
+            if(Misc::StringUtils::lowerCase(mNpc->mRace).find("argonian") != std::string::npos)
+                addAnimSource("meshes\\argonian_swimkna.nif");
+            else if(!mNpc->isMale() && !isBeast)
+                addAnimSource("meshes\\base_anim_female.nif");
+            if(mNpc->mModel.length() > 0)
+                addAnimSource("meshes\\"+mNpc->mModel);
+        }
     }
     else
     {
-        /* A bit counter-intuitive, but unlike third-person anims, it seems
-         * beast races get both base_anim.1st.nif and base_animkna.1st.nif.
-         */
-        addAnimSource("meshes\\base_anim.1st.nif");
-        if(isBeast)
-            addAnimSource("meshes\\base_animkna.1st.nif");
-        if(!mNpc->isMale() && !isBeast)
-            addAnimSource("meshes\\base_anim_female.1st.nif");
+        if(isWerewolf)
+            addAnimSource(smodel);
+        else
+        {
+            /* A bit counter-intuitive, but unlike third-person anims, it seems
+             * beast races get both base_anim.1st.nif and base_animkna.1st.nif.
+             */
+            addAnimSource("meshes\\base_anim.1st.nif");
+            if(isBeast)
+                addAnimSource("meshes\\base_animkna.1st.nif");
+            if(!mNpc->isMale() && !isBeast)
+                addAnimSource("meshes\\base_anim_female.1st.nif");
+        }
     }
-    MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
 
     for(size_t i = 0;i < ESM::PRT_Count;i++)
         removeIndividualPart((ESM::PartReferenceType)i);
-    forceUpdate();
+    updateParts(true);
 }
 
 void NpcAnimation::updateParts(bool forceupdate)
@@ -202,7 +200,8 @@ void NpcAnimation::updateParts(bool forceupdate)
     };
     static const size_t slotlistsize = sizeof(slotlist)/sizeof(slotlist[0]);
 
-    MWWorld::InventoryStore &inv = MWWorld::Class::get(mPtr).getInventoryStore(mPtr);
+    const MWWorld::Class &cls = MWWorld::Class::get(mPtr);
+    MWWorld::InventoryStore &inv = cls.getInventoryStore(mPtr);
     for(size_t i = 0;!forceupdate && i < slotlistsize;i++)
     {
         MWWorld::ContainerStoreIterator iter = inv.getSlot(slotlist[i].mSlot);
@@ -286,18 +285,20 @@ void NpcAnimation::updateParts(bool forceupdate)
 
     showWeapons(mShowWeapons);
 
-    const int Flag_Female = 0x01;
-    const int Flag_FirstPerson = 0x02;
+    // Remember body parts so we only have to search through the store once for each race/gender/viewmode combination
+    static std::map< std::pair<std::string,int>,std::vector<const ESM::BodyPart*> > sRaceMapping;
 
-    int flags = 0;
-    if (!mNpc->isMale())
+    static const int Flag_Female      = 1<<0;
+    static const int Flag_FirstPerson = 1<<1;
+
+    bool isWerewolf = cls.getNpcStats(mPtr).isWerewolf();
+    int flags = (isWerewolf ? -1 : 0);
+    if(!mNpc->isMale())
         flags |= Flag_Female;
-    if (mViewMode == VM_FirstPerson)
+    if(mViewMode == VM_FirstPerson)
         flags |= Flag_FirstPerson;
 
-    // Remember body parts so we only have to search through the store once for each race/gender/viewmode combination
-    static std::map< std::pair<std::string, int> , std::vector<const ESM::BodyPart*> > sRaceMapping;
-    std::string race = Misc::StringUtils::lowerCase(mNpc->mRace);
+    std::string race = (isWerewolf ? "werewolf" : Misc::StringUtils::lowerCase(mNpc->mRace));
     std::pair<std::string, int> thisCombination = std::make_pair(race, flags);
     if (sRaceMapping.find(thisCombination) == sRaceMapping.end())
     {
@@ -334,6 +335,8 @@ void NpcAnimation::updateParts(bool forceupdate)
         const MWWorld::Store<ESM::BodyPart> &partStore = store.get<ESM::BodyPart>();
         for(MWWorld::Store<ESM::BodyPart>::iterator it = partStore.begin(); it != partStore.end(); ++it)
         {
+            if(isWerewolf)
+                break;
             const ESM::BodyPart& bodypart = *it;
             if (bodypart.mData.mFlags & ESM::BodyPart::BPF_NotPlayable)
                 continue;
@@ -499,20 +502,25 @@ bool NpcAnimation::addOrReplaceIndividualPart(ESM::PartReferenceType type, int g
     mPartPriorities[type] = priority;
 
     mObjectParts[type] = insertBoundedPart(mesh, group, sPartList.at(type));
-    if(mObjectParts[type].mSkelBase && mObjectParts[type].mSkelBase->isParentTagPoint())
+    if(mObjectParts[type].mSkelBase)
     {
-        Ogre::Node *root = mObjectParts[type].mSkelBase->getParentNode();
         Ogre::SkeletonInstance *skel = mObjectParts[type].mSkelBase->getSkeleton();
-        if(skel->hasBone("BoneOffset"))
+        if(mObjectParts[type].mSkelBase->isParentTagPoint())
         {
-            Ogre::Bone *offset = skel->getBone("BoneOffset");
-            root->translate(offset->getPosition());
-            root->rotate(offset->getOrientation());
-            // HACK: Why an extra -90 degree rotation?
-            root->pitch(Ogre::Degree(-90.0f));
-            root->scale(offset->getScale());
-            root->setInitialState();
+            Ogre::Node *root = mObjectParts[type].mSkelBase->getParentNode();
+            if(skel->hasBone("BoneOffset"))
+            {
+                Ogre::Bone *offset = skel->getBone("BoneOffset");
+                root->translate(offset->getPosition());
+                root->rotate(offset->getOrientation());
+                // HACK: Why an extra -90 degree rotation?
+                root->pitch(Ogre::Degree(-90.0f));
+                root->scale(offset->getScale());
+                root->setInitialState();
+            }
         }
+
+        updateSkeletonInstance(mSkelBase->getSkeleton(), skel);
     }
 
     // TODO:
@@ -527,7 +535,7 @@ bool NpcAnimation::addOrReplaceIndividualPart(ESM::PartReferenceType type, int g
             ctrl->setSource(mNullAnimationValuePtr);
     }
 
-   return true;
+    return true;
 }
 
 void NpcAnimation::addPartGroup(int group, int priority, const std::vector<ESM::PartReference> &parts)

@@ -37,11 +37,10 @@ private:
     // Bounded Parts
     NifOgre::ObjectList mObjectParts[ESM::PRT_Count];
 
-    const ESM::NPC  *mNpc;
-    std::string     mHeadModel;
-    std::string     mHairModel;
-    std::string     mBodyPrefix;
-    ViewMode        mViewMode;
+    const ESM::NPC *mNpc;
+    std::string    mHeadModel;
+    std::string    mHairModel;
+    ViewMode       mViewMode;
     bool mShowWeapons;
 
     float mTimeToChange;
@@ -65,9 +64,9 @@ private:
     int mPartslots[ESM::PRT_Count];  //Each part slot is taken by clothing, armor, or is empty
     int mPartPriorities[ESM::PRT_Count];
 
-    NifOgre::ObjectList insertBoundedPart(const std::string &model, int group, const std::string &bonename);
+    void updateNpcBase();
 
-    void updateParts(bool forceupdate = false);
+    NifOgre::ObjectList insertBoundedPart(const std::string &model, int group, const std::string &bonename);
 
     void removeIndividualPart(ESM::PartReferenceType type);
     void reserveIndividualPart(ESM::PartReferenceType type, int group, int priority);
@@ -88,8 +87,10 @@ public:
 
     void setViewMode(ViewMode viewMode);
 
-    void forceUpdate()
-    { updateParts(true); }
+    void updateParts(bool forceupdate = false);
+
+    /// Rebuilds the NPC, updating their root model, animation sources, and equipment.
+    void rebuild();
 };
 
 }
